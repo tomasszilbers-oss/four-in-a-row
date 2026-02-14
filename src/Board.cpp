@@ -39,6 +39,19 @@ std::optional<Player> Board::GetCell(int col, int row) const
     return grid_[col][row];
 }
 
+std::optional<int> Board::GetDropRow(int col) const
+{
+    if (col < 0 || col >= Cols)
+        return std::nullopt;
+
+    for (int row = 0; row < Rows; ++row)
+    {
+        if (!grid_[col][row].has_value())
+            return row;
+    }
+    return std::nullopt;
+}
+
 bool Board::IsFull() const
 {
     for (int col = 0; col < Cols; ++col)

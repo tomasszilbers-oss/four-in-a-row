@@ -17,16 +17,18 @@ void GameController::NewGame(bool vsComputer)
 void GameController::OnHumanChooseColumn(int col)
 {
     if (state_ != GameState::Playing) return;
-    if (currentPlayer_ != Player::Human) return;
 
-    ApplyMove(col, Player::Human);
+    // In vs-computer mode only the human clicks.
+    if (vsComputer_ && currentPlayer_ != Player::Human) return;
+
+    ApplyMove(col, currentPlayer_);
 }
 
 void GameController::ApplyMove(int col, Player player)
 {
     auto placedRow = board_.DropToken(col, player);
     if (!placedRow.has_value())
-        return; // column full or invalid -> ignore / UI can show message
+        return;
 
     auto res = Rules::CheckWinTie(board_);
     outcome_ = res.outcome;
@@ -45,5 +47,21 @@ void GameController::NextTurn()
 {
     currentPlayer_ = (currentPlayer_ == Player::Human) ? Player::Computer : Player::Human;
 
-    // TODO later: if vsComputer_ and currentPlayer_ == Computer -> call AI, then ApplyMove(aiCol, Computer)
+    // Optional: if you already have an AI move function, trigger it here.
+    // This block can stay disabled until AI is implemented.
+    /*
+    if (vsComputer_ && currentPlayer_ == Player::Computer && state_ == GameState::Playing)
+    {
+        int col = ai_.ChooseMove(board_); // Must return 0..6
+        ApplyMove(col, Player::Computer);
+    }
+    */
+}
+
+void GameController::ApplyMoveFromUI(int col)
+{
+    if (state_ != GameState::Playing)
+        return;
+
+    ApplyMove(col, currentPlayer_);
 }

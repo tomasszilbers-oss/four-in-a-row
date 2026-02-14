@@ -21,6 +21,10 @@ public:
     // Returns who occupies cell, or nullopt if empty.
     std::optional<Player> GetCell(int col, int row) const;
 
+    // Returns the row index (0..Rows-1) where a token would land if dropped,
+    // or nullopt if the column is full/invalid. Does not modify the board.
+    std::optional<int> GetDropRow(int col) const;
+
     bool IsFull() const;
 
 private:

@@ -18,13 +18,6 @@ endif()
 # Connect include folder
 target_include_directories(four_in_a_row PRIVATE include)
 
-# Add .cpp files
-target_sources(four_in_a_row PRIVATE
-    src/Board.cpp
-    src/Rules.cpp
-    src/GameController.cpp
-)
-
 # Windows libraries (WinAPI + GDI+)
 if (WIN32)
     target_link_libraries(four_in_a_row PRIVATE gdiplus)
