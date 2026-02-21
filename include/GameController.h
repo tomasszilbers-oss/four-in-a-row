@@ -23,11 +23,12 @@ public:
 
     Player GetCurrentPlayer() const { return currentPlayer_; }
 
+    bool IsVsComputer() const { return vsComputer_; }
+
 private:
     void ApplyMove(int col, Player player);
     void NextTurn();
 
-private:
     Board board_;
     GameState state_ = GameState::ModeSelect;
 

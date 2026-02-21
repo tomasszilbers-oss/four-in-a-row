@@ -35,3 +35,13 @@ add_custom_command(TARGET four_in_a_row POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
         $<TARGET_FILE_DIR:four_in_a_row>/stats
 )
+
+# Testing scripts
+add_executable(tests
+        tests/TestRules.cpp
+        src/Board.cpp
+        src/Rules.cpp
+)
+
+target_include_directories(tests PRIVATE include)
+

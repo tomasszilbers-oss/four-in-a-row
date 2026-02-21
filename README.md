@@ -90,6 +90,9 @@ four-in-a-row/
 ├── stats/
 │   └── stats.csv
 │
+├── tests/
+│   └── TestRules.cpp
+│
 ├── docs/
 │   ├── diagramma.png
 │   └── plans.docx

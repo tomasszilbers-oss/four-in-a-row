@@ -169,6 +169,13 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
         case WM_LBUTTONDOWN:
         {
+            if (g_controller.GetState() == GameState::GameOver)
+            {
+                g_controller.NewGame(g_controller.IsVsComputer());
+                InvalidateRect(hwnd, nullptr, TRUE);
+                return 0;
+            }
+
             if (g_anim.active)
                 return 0;       //break;
 
@@ -228,7 +235,42 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
                 g_controller.ApplyMoveFromUI(g_anim.col);
 
-                //InvalidateRect(hwnd, nullptr, TRUE);
+                // Check if the game is over
+                if (g_controller.GetState() == GameState::GameOver)
+                {
+                    auto outcome = g_controller.GetOutcome();
+
+                    if (outcome == Outcome::Win)
+                    {
+                        auto winner = g_controller.GetWinner();
+                        if (winner.has_value())
+                        {
+                            std::string message;
+
+                            if (g_controller.IsVsComputer())
+                            {
+                                message = (*winner == Player::Human)
+                                    ? "Human wins!"
+                                    : "Computer wins!";
+                            }
+                            else
+                            {
+                                message = (*winner == Player::Human)
+                                    ? "First player wins!"
+                                    : "Second player wins!";
+                            }
+
+                            MessageBoxA(hwnd, message.c_str(), "Game Over",
+                                        MB_OK | MB_ICONINFORMATION);
+                        }
+                    }
+                    else if (outcome == Outcome::Tie)
+                    {
+                        MessageBoxA(hwnd, "It's a tie!",
+                                    "Game Over",
+                                    MB_OK | MB_ICONINFORMATION);
+                    }
+                }
             }
 
             InvalidateRect(hwnd, nullptr, TRUE);
