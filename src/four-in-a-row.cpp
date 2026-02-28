@@ -5,8 +5,8 @@
 
 #include "GameController.h"
 #include "Board.h"
-#include "Player.h"
 #include "GameState.h"
+#include "Rules.h"
 
 static const char* kWindowClassName = "FourInARowWindowClass";
 static const char* kWindowTitle = "Four in a Row";
@@ -25,7 +25,7 @@ struct DropAnimation
     bool active = false;
     int col = -1;
     int targetRow = -1;
-    Player player;
+    int playerIndex;
 
     float y = 0.0f;
     float yTarget = 0.0f;
@@ -35,6 +35,13 @@ struct DropAnimation
 };
 
 static DropAnimation g_anim;
+
+struct NameDialogData
+{
+    std::string name1;
+    std::string name2;
+    bool confirmed = false;
+};
 
 static void RecalculateLayout(HWND hwnd)
 {
@@ -48,17 +55,20 @@ static void RecalculateLayout(HWND hwnd)
     const int rows = Board::Rows;
 
     const int padding = 20;
+    const int topMargin = 40;  // space for status text
+    const int bottomMargin = 20;
 
     const int maxCellW = (clientW - 2 * padding) / cols;
-    const int maxCellH = (clientH - 2 * padding) / rows;
+    const int maxCellH = (clientH - topMargin - bottomMargin - 2 * padding) / rows;
 
     g_cellSize = std::max(20, std::min(maxCellW, maxCellH));
 
     const int boardW = g_cellSize * cols;
     const int boardH = g_cellSize * rows;
+    int availableHeight = clientH - topMargin - bottomMargin;
 
     g_offsetX = (clientW - boardW) / 2;
-    g_offsetY = (clientH - boardH) / 2;
+    g_offsetY = topMargin + (availableHeight - boardH) / 2;
 }
 
 static int ColumnFromMouse(int mouseX, int mouseY)
@@ -121,7 +131,7 @@ static void DrawScene(HWND hwnd, HDC hdc) {
             auto c = board.GetCell(col, row);
             if (c.has_value())
             {
-                HBRUSH b = (*c == Player::Human) ? redBrush : blackBrush;
+                HBRUSH b = (*c == 0) ? redBrush : blackBrush;
                 HGDIOBJ oldBrush = SelectObject(hdc, b);
                 Ellipse(hdc, token.left, token.top, token.right, token.bottom);
                 SelectObject(hdc, oldBrush);
@@ -143,10 +153,30 @@ static void DrawScene(HWND hwnd, HDC hdc) {
         r.top = static_cast<int>(g_anim.y);
         r.bottom = r.top + size;
 
-        HBRUSH b = (g_anim.player == Player::Human) ? redBrush : blackBrush;
+        HBRUSH b = (g_anim.playerIndex == 0) ? redBrush : blackBrush;
         HGDIOBJ oldBrush = SelectObject(hdc, b);
         Ellipse(hdc, r.left, r.top, r.right, r.bottom);
         SelectObject(hdc, oldBrush);
+    }
+
+    // --- draw current player info ---
+    {
+        const auto& info = g_controller.GetCurrentPlayerInfo();
+
+        std::string text;
+
+        if (g_controller.GetState() == GameState::GameOver)
+            text = "Game Over";
+        else
+            text = "Current: " + info.name;
+
+        SetBkMode(hdc, TRANSPARENT);
+        SetTextColor(hdc, RGB(20, 20, 20));
+
+        int textY = g_offsetY - 30;
+        if (textY < 10) textY = 10;
+
+        TextOutA(hdc, 20, textY, text.c_str(), (int)text.length());
     }
 
     SelectObject(hdc, oldPen);
@@ -169,9 +199,14 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
         case WM_LBUTTONDOWN:
         {
-            if (g_controller.GetState() == GameState::GameOver)
-            {
-                g_controller.NewGame(g_controller.IsVsComputer());
+            if (g_controller.GetState() == GameState::GameOver) {
+                g_controller.NewGame(
+                    g_controller.IsVsComputer(),
+                    g_controller.GetPlayerInfo(0).name,
+                    g_controller.GetPlayerInfo(1).name,
+                    g_controller.GetFirstPlayerStarts()
+                );
+
                 InvalidateRect(hwnd, nullptr, TRUE);
                 return 0;
             }
@@ -196,7 +231,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             g_anim.active = true;
             g_anim.col = col;
             g_anim.targetRow = *dropRowOpt;
-            g_anim.player = g_controller.GetCurrentPlayer();
+            g_anim.playerIndex = g_controller.GetCurrentPlayerIndex();
             g_anim.lastTick = GetTickCount();
 
             int padding = 6;
@@ -242,23 +277,15 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
                     if (outcome == Outcome::Win)
                     {
-                        auto winner = g_controller.GetWinner();
-                        if (winner.has_value())
+                        auto winnerIndex = g_controller.GetWinnerIndex();
+                        if (winnerIndex.has_value())
                         {
                             std::string message;
+                            std::string winnerName;
 
-                            if (g_controller.IsVsComputer())
-                            {
-                                message = (*winner == Player::Human)
-                                    ? "Human wins!"
-                                    : "Computer wins!";
-                            }
-                            else
-                            {
-                                message = (*winner == Player::Human)
-                                    ? "First player wins!"
-                                    : "Second player wins!";
-                            }
+                            winnerName = g_controller.GetPlayerInfo(*winnerIndex).name;
+
+                            message = winnerName + " wins!";
 
                             MessageBoxA(hwnd, message.c_str(), "Game Over",
                                         MB_OK | MB_ICONINFORMATION);
@@ -298,9 +325,49 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
     //return 0;
 }
 
+bool ShowNameDialog(HINSTANCE hInstance, NameDialogData& data);
+LRESULT CALLBACK NameDialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-    g_controller.NewGame(false);
+    int mode = MessageBoxA(nullptr,
+    "Play against computer?\nYes = PvE\nNo = PvP",
+    "Select Mode",
+    MB_YESNO | MB_ICONQUESTION);
+
+    bool vsComputer = (mode == IDYES);
+
+    if (vsComputer)
+    {
+        MessageBoxA(nullptr,
+            "Computer AI is not implemented yet.\nThis feature will be added in future development.",
+            "Not Implemented",
+            MB_OK | MB_ICONINFORMATION);
+
+        return 0;
+    }
+
+    NameDialogData dialogData;
+
+    if (!ShowNameDialog(hInstance, dialogData))
+        return 0;
+
+    std::string name1 = dialogData.name1;
+    std::string name2 = dialogData.name2;
+
+    std::string firstMessage =
+        "Who goes first?\n"
+        "Yes = " + name1 + "\n"
+        "No = " + name2;
+
+    int first = MessageBoxA(nullptr,
+        firstMessage.c_str(),
+        "First Move",
+        MB_YESNO | MB_ICONQUESTION);
+
+    bool firstStarts = (first == IDYES);
+
+    g_controller.NewGame(vsComputer, name1, name2, firstStarts);
 
     WNDCLASSEXA wc{};
     wc.cbSize = sizeof(wc);
@@ -348,4 +415,134 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     }
 
     return 0;
+}
+
+LRESULT CALLBACK NameDialogProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    static NameDialogData* data = nullptr;
+    static HWND edit1 = nullptr;
+    static HWND edit2 = nullptr;
+
+    switch (msg)
+    {
+        case WM_CREATE:
+        {
+            data = reinterpret_cast<NameDialogData*>(
+                ((CREATESTRUCT*)lParam)->lpCreateParams);
+
+            CreateWindowA("STATIC", "Player 1 Name:",
+                          WS_VISIBLE | WS_CHILD,
+                          20, 20, 120, 20,
+                          hwnd, nullptr, nullptr, nullptr);
+
+            edit1 = CreateWindowA("EDIT", "",
+                                  WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
+                                  20, 45, 240, 25,
+                                  hwnd, nullptr, nullptr, nullptr);
+
+            SetFocus(edit1);
+
+            CreateWindowA("STATIC", "Player 2 Name:",
+                          WS_VISIBLE | WS_CHILD,
+                          20, 85, 120, 20,
+                          hwnd, nullptr, nullptr, nullptr);
+
+            edit2 = CreateWindowA("EDIT", "",
+                                  WS_VISIBLE | WS_CHILD | WS_BORDER | WS_TABSTOP,
+                                  20, 110, 240, 25,
+                                  hwnd, nullptr, nullptr, nullptr);
+
+            // Limit input length to 20 characters
+            SendMessageA(edit1, EM_SETLIMITTEXT, 20, 0);
+            SendMessageA(edit2, EM_SETLIMITTEXT, 20, 0);
+
+            CreateWindowA("BUTTON", "OK",
+                          WS_VISIBLE | WS_CHILD | WS_TABSTOP,
+                          90, 160, 100, 30,
+                          hwnd, (HMENU)1, nullptr, nullptr);
+
+            return 0;
+        }
+
+        case WM_COMMAND:
+        {
+            if (LOWORD(wParam) == 1) // OK button
+            {
+                char buffer[64];
+
+                GetWindowTextA(edit1, buffer, 21);
+                data->name1 = buffer;
+
+                GetWindowTextA(edit2, buffer, 21);
+                data->name2 = buffer;
+
+                // Replace empty names
+                if (data->name1.empty())
+                    data->name1 = "Player 1";
+
+                if (data->name2.empty())
+                    data->name2 = "Player 2";
+
+                data->confirmed = true;
+                DestroyWindow(hwnd);
+            }
+            return 0;
+        }
+
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+            return 0;
+
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+    }
+
+    return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
+
+bool ShowNameDialog(HINSTANCE hInstance, NameDialogData& data)
+{
+    const char* className = "NameDialogClass";
+
+    WNDCLASSEXA wc{};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = NameDialogProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = className;
+    wc.hCursor = LoadCursorA(nullptr, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+
+    RegisterClassExA(&wc);
+
+    HWND hwnd = CreateWindowExA(
+        0,
+        className,
+        "Enter Player Names",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        300, 240,
+        nullptr,
+        nullptr,
+        hInstance,
+        &data
+    );
+
+    if (!hwnd)
+        return false;
+
+    ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
+
+    MSG msg{};
+    while (GetMessageA(&msg, nullptr, 0, 0) > 0)
+    {
+        if (!IsDialogMessage(hwnd, &msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
+    }
+
+    return data.confirmed;
 }

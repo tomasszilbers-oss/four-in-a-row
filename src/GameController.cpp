@@ -2,37 +2,49 @@
 
 GameController::GameController() = default;
 
-void GameController::NewGame(bool vsComputer)
+void GameController::NewGame(bool vsComputer,
+                             const std::string& name1,
+                             const std::string& name2,
+                             bool firstPlayerStarts)
 {
     vsComputer_ = vsComputer;
-    board_.Reset();
 
+    board_.Reset();
     state_ = GameState::Playing;
-    currentPlayer_ = Player::Human;
+
+    players_[0] = {name1, Player::Human};
+    players_[1] = {name2, vsComputer ? Player::Computer : Player::Human};
+
+    firstPlayerStarts_ = firstPlayerStarts;
+    currentPlayerIndex_ = firstPlayerStarts ? 0 : 1;
 
     outcome_ = Outcome::Playing;
-    winner_.reset();
+    winnerIndex_.reset();
 }
 
 void GameController::OnHumanChooseColumn(int col)
 {
-    if (state_ != GameState::Playing) return;
+    if (state_ != GameState::Playing)
+        return;
 
-    // In vs-computer mode only the human clicks.
-    if (vsComputer_ && currentPlayer_ != Player::Human) return;
+    const PlayerInfo& current = players_[currentPlayerIndex_];
 
-    ApplyMove(col, currentPlayer_);
+    // In vs-computer mode only human can click
+    if (vsComputer_ && current.type != Player::Human)
+        return;
+
+    ApplyMove(col, currentPlayerIndex_);
 }
 
-void GameController::ApplyMove(int col, Player player)
+void GameController::ApplyMove(int col, int playerIndex)
 {
-    auto placedRow = board_.DropToken(col, player);
+    auto placedRow = board_.DropToken(col, playerIndex);
     if (!placedRow.has_value())
         return;
 
     auto res = Rules::CheckWinTie(board_);
     outcome_ = res.outcome;
-    winner_ = res.winner;
+    winnerIndex_ = res.winnerIndex;
 
     if (outcome_ == Outcome::Win || outcome_ == Outcome::Tie)
     {
@@ -45,17 +57,7 @@ void GameController::ApplyMove(int col, Player player)
 
 void GameController::NextTurn()
 {
-    currentPlayer_ = (currentPlayer_ == Player::Human) ? Player::Computer : Player::Human;
-
-    // Optional: if you already have an AI move function, trigger it here.
-    // This block can stay disabled until AI is implemented.
-    /*
-    if (vsComputer_ && currentPlayer_ == Player::Computer && state_ == GameState::Playing)
-    {
-        int col = ai_.ChooseMove(board_); // Must return 0..6
-        ApplyMove(col, Player::Computer);
-    }
-    */
+    currentPlayerIndex_ = 1 - currentPlayerIndex_;
 }
 
 void GameController::ApplyMoveFromUI(int col)
@@ -63,5 +65,5 @@ void GameController::ApplyMoveFromUI(int col)
     if (state_ != GameState::Playing)
         return;
 
-    ApplyMove(col, currentPlayer_);
+    ApplyMove(col, currentPlayerIndex_);
 }

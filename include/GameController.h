@@ -2,13 +2,18 @@
 #include "Board.h"
 #include "Rules.h"
 #include "GameState.h"
+#include "PlayerInfo.h"
+#include <string>
 
 class GameController
 {
 public:
     GameController();
 
-    void NewGame(bool vsComputer);
+    void NewGame(bool vsComputer,
+                 const std::string& name1,
+                 const std::string& name2,
+                 bool firstPlayerStarts);
 
     // Called by UI when user selected a column.
     void OnHumanChooseColumn(int col);
@@ -19,22 +24,26 @@ public:
     GameState GetState() const { return state_; }
 
     Outcome GetOutcome() const { return outcome_; }
-    std::optional<Player> GetWinner() const { return winner_; }
+    std::optional<int> GetWinnerIndex() const { return winnerIndex_; }
 
-    Player GetCurrentPlayer() const { return currentPlayer_; }
-
+    const PlayerInfo& GetCurrentPlayerInfo() const { return players_[currentPlayerIndex_]; }
+    const PlayerInfo& GetPlayerInfo(int index) const { return players_[index]; }
+    bool GetFirstPlayerStarts() const { return firstPlayerStarts_; }
     bool IsVsComputer() const { return vsComputer_; }
+    int GetCurrentPlayerIndex() const { return currentPlayerIndex_; }
 
 private:
-    void ApplyMove(int col, Player player);
+    void ApplyMove(int col, int playerIndex);
     void NextTurn();
 
     Board board_;
     GameState state_ = GameState::ModeSelect;
 
+    PlayerInfo players_[2];
+    int currentPlayerIndex_ = 0;
     bool vsComputer_ = false;
-    Player currentPlayer_ = Player::Human;
+    bool firstPlayerStarts_ = true;
 
     Outcome outcome_ = Outcome::Playing;
-    std::optional<Player> winner_;
+    std::optional<int> winnerIndex_;
 };

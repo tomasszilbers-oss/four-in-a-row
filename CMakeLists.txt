@@ -44,4 +44,4 @@ add_executable(tests
 )
 
 target_include_directories(tests PRIVATE include)
-
+target_compile_features(tests PRIVATE cxx_std_17)

@@ -12,7 +12,7 @@ enum class Outcome
 struct CheckResult
 {
     Outcome outcome = Outcome::Playing;
-    std::optional<Player> winner; // set only when outcome == Win
+    std::optional<int> winnerIndex; // set only when outcome == Win
 };
 
 class Rules

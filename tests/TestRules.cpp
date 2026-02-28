@@ -7,16 +7,16 @@ void TestHorizontalWin()
 {
     Board b;
 
-    b.DropToken(0, Player::Human);
-    b.DropToken(1, Player::Human);
-    b.DropToken(2, Player::Human);
-    b.DropToken(3, Player::Human);
+    b.DropToken(0, 0);
+    b.DropToken(1, 0);
+    b.DropToken(2, 0);
+    b.DropToken(3, 0);
 
     auto res = Rules::CheckWinTie(b);
 
     assert(res.outcome == Outcome::Win);
-    assert(res.winner.has_value());
-    assert(*res.winner == Player::Human);
+    assert(res.winnerIndex.has_value());
+    assert(*res.winnerIndex == 0);
 
     std::cout << "Horizontal win test passed\n";
 }
@@ -26,12 +26,13 @@ void TestVerticalWin()
     Board b;
 
     for (int i = 0; i < 4; ++i)
-        b.DropToken(0, Player::Human);
+        b.DropToken(0, 0);
 
     auto res = Rules::CheckWinTie(b);
 
     assert(res.outcome == Outcome::Win);
-    assert(*res.winner == Player::Human);
+    assert(res.winnerIndex.has_value());
+    assert(*res.winnerIndex == 0);
 
     std::cout << "Vertical win test passed\n";
 }
@@ -40,25 +41,25 @@ void TestDiagonalUpRight()
 {
     Board b;
 
-    // Construct ↗ diagonal
-    b.DropToken(0, Player::Human);
+    b.DropToken(0, 0);
 
-    b.DropToken(1, Player::Computer);
-    b.DropToken(1, Player::Human);
+    b.DropToken(1, 1);
+    b.DropToken(1, 0);
 
-    b.DropToken(2, Player::Computer);
-    b.DropToken(2, Player::Computer);
-    b.DropToken(2, Player::Human);
+    b.DropToken(2, 1);
+    b.DropToken(2, 1);
+    b.DropToken(2, 0);
 
-    b.DropToken(3, Player::Computer);
-    b.DropToken(3, Player::Computer);
-    b.DropToken(3, Player::Computer);
-    b.DropToken(3, Player::Human);
+    b.DropToken(3, 1);
+    b.DropToken(3, 1);
+    b.DropToken(3, 1);
+    b.DropToken(3, 0);
 
     auto res = Rules::CheckWinTie(b);
 
     assert(res.outcome == Outcome::Win);
-    assert(*res.winner == Player::Human);
+    assert(res.winnerIndex.has_value());
+    assert(*res.winnerIndex == 0);
 
     std::cout << "Diagonal ↗ test passed\n";
 }
@@ -67,25 +68,25 @@ void TestDiagonalUpLeft()
 {
     Board b;
 
-    // Construct ↖ diagonal
-    b.DropToken(3, Player::Human);
+    b.DropToken(3, 0);
 
-    b.DropToken(2, Player::Computer);
-    b.DropToken(2, Player::Human);
+    b.DropToken(2, 1);
+    b.DropToken(2, 0);
 
-    b.DropToken(1, Player::Computer);
-    b.DropToken(1, Player::Computer);
-    b.DropToken(1, Player::Human);
+    b.DropToken(1, 1);
+    b.DropToken(1, 1);
+    b.DropToken(1, 0);
 
-    b.DropToken(0, Player::Computer);
-    b.DropToken(0, Player::Computer);
-    b.DropToken(0, Player::Computer);
-    b.DropToken(0, Player::Human);
+    b.DropToken(0, 1);
+    b.DropToken(0, 1);
+    b.DropToken(0, 1);
+    b.DropToken(0, 0);
 
     auto res = Rules::CheckWinTie(b);
 
     assert(res.outcome == Outcome::Win);
-    assert(*res.winner == Player::Human);
+    assert(res.winnerIndex.has_value());
+    assert(*res.winnerIndex == 0);
 
     std::cout << "Diagonal ↖ test passed\n";
 }
@@ -94,16 +95,15 @@ void TestTie()
 {
     Board b;
 
-    // Carefully constructed pattern that avoids 4 in a row
-    Player pattern[Board::Cols][Board::Rows] =
+    int pattern[Board::Cols][Board::Rows] =
     {
-        {Player::Human, Player::Human, Player::Computer, Player::Computer, Player::Human, Player::Human},
-        {Player::Computer, Player::Computer, Player::Human, Player::Human, Player::Computer, Player::Computer},
-        {Player::Human, Player::Human, Player::Computer, Player::Computer, Player::Human, Player::Human},
-        {Player::Computer, Player::Computer, Player::Human, Player::Human, Player::Computer, Player::Computer},
-        {Player::Human, Player::Human, Player::Computer, Player::Computer, Player::Human, Player::Human},
-        {Player::Computer, Player::Computer, Player::Human, Player::Human, Player::Computer, Player::Computer},
-        {Player::Human, Player::Human, Player::Computer, Player::Computer, Player::Human, Player::Human}
+        {0,0,1,1,0,0},
+        {1,1,0,0,1,1},
+        {0,0,1,1,0,0},
+        {1,1,0,0,1,1},
+        {0,0,1,1,0,0},
+        {1,1,0,0,1,1},
+        {0,0,1,1,0,0}
     };
 
     for (int col = 0; col < Board::Cols; ++col)
@@ -113,6 +113,7 @@ void TestTie()
     auto res = Rules::CheckWinTie(b);
 
     assert(res.outcome == Outcome::Tie);
+    assert(!res.winnerIndex.has_value());
 
     std::cout << "Tie test passed\n";
 }

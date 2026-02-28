@@ -18,7 +18,7 @@ bool Board::CanDrop(int col) const
     return !grid_[col][Rows - 1].has_value();
 }
 
-std::optional<int> Board::DropToken(int col, Player player)
+std::optional<int> Board::DropToken(int col, int playerIndex)
 {
     if (!CanDrop(col)) return std::nullopt;
 
@@ -26,14 +26,14 @@ std::optional<int> Board::DropToken(int col, Player player)
     {
         if (!grid_[col][row].has_value())
         {
-            grid_[col][row] = player;
+            grid_[col][row] = playerIndex;
             return row;
         }
     }
     return std::nullopt;
 }
 
-std::optional<Player> Board::GetCell(int col, int row) const
+std::optional<int> Board::GetCell(int col, int row) const
 {
     if (col < 0 || col >= Cols || row < 0 || row >= Rows) return std::nullopt;
     return grid_[col][row];

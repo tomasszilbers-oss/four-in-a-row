@@ -1,9 +1,10 @@
 #include "Rules.h"
+#include "Player.h"
 
 namespace
 {
     bool CheckDirection(const Board& board, int startCol, int startRow,
-                        int dCol, int dRow, Player player)
+                        int dCol, int dRow, int playerIndex)
     {
         for (int i = 1; i < 4; ++i)
         {
@@ -11,7 +12,7 @@ namespace
             int r = startRow + dRow * i;
 
             auto cell = board.GetCell(c, r);
-            if (!cell.has_value() || *cell != player)
+            if (!cell.has_value() || *cell != playerIndex)
                 return false;
         }
         return true;
@@ -28,24 +29,31 @@ CheckResult Rules::CheckWinTie(const Board& board)
             if (!cell.has_value())
                 continue;
 
-            Player player = *cell;
+            int playerIndex = *cell;
 
             // Horizontal →
-            if (CheckDirection(board, col, row, 1, 0, player))
-                return {Outcome::Win, player};
+            if (CheckDirection(board, col, row, 1, 0, playerIndex))
+            {
+                return {Outcome::Win, playerIndex};
+            }
 
             // Vertical ↑
-            if (CheckDirection(board, col, row, 0, 1, player))
-                return {Outcome::Win, player};
+            if (CheckDirection(board, col, row, 0, 1, playerIndex))
+            {
+                return {Outcome::Win, playerIndex};
+            }
 
             // Diagonal ↗
-            if (CheckDirection(board, col, row, 1, 1, player))
-                return {Outcome::Win, player};
+            if (CheckDirection(board, col, row, 1, 1, playerIndex))
+            {
+                return {Outcome::Win, playerIndex};
+            }
 
             // Diagonal ↖
-            if (CheckDirection(board, col, row, -1, 1, player))
-                return {Outcome::Win, player};
-        }
+            if (CheckDirection(board, col, row, -1, 1, playerIndex))
+            {
+                return {Outcome::Win, playerIndex};
+            }        }
     }
 
     if (board.IsFull())
